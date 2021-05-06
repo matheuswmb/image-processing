@@ -16,9 +16,9 @@ def plot_histogram(image, channel, pixel_range=None, color='grey'):
     plt.xlim([0,256])
     plt.show()
 
-def pre_processin_image(image, bottom_limit=200, upper_limit=255):
+def pre_processing_image(image, bottom_limit=200):
     gray_image = get_gray_image(image)
-    return get_black_white_image(gray_image, bottom_limit, upper_limit)
+    return get_black_white_image(gray_image, bottom_limit)
 
 def get_gray_image(imagem):
     return cv.cvtColor(imagem, cv.COLOR_BGR2GRAY)
