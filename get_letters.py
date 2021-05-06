@@ -35,11 +35,11 @@ def get_black_white_image(image, bottom_limit):
     return blackAndWhiteImage
 
 def get_images():
-    fist_image = cv.imread('./first.jpg')
+    first_image = cv.imread('./first.jpg')
     second_image = cv.imread('./second.jpg')
     third_image = cv.imread('./third.jpg')
 
-    return fist_image, second_image, third_image
+    return first_image, second_image, third_image
 
 def segment():
     pass
@@ -60,15 +60,22 @@ def get_neighborhood_array(array, x, y, neighborhood=1, flatted=False):
     else:
         return neighborhood_array
 
-if __name__ == "__main__":
-    fist_image, second_image, third_image = get_images()
+def erosion(image):
+    for line_index, line in enumerate(image):
+        for collum_index, pixel in enumerate(line):
+            if line_index == 1:
+                if collum_index == 1:
+                    
 
-    fist_image = get_gray_image(fist_image)
+if __name__ == "__main__":
+    first_image, second_image, third_image = get_images()
+
+    first_image = get_gray_image(first_image)
     second_image = get_gray_image(second_image)
     third_image = get_gray_image(third_image)
 
-    # show_and_wait(get_black_white_image(fist_image, 220), 'primeira')
-    # show_and_wait(cv.threshold(fist_image, 220, 255, cv.THRESH_BINARY)[1], 'primeira opencv')
+    # show_and_wait(get_black_white_image(first_image, 220), 'primeira')
+    # show_and_wait(cv.threshold(first_image, 220, 255, cv.THRESH_BINARY)[1], 'primeira opencv')
 
     # show_and_wait(get_black_white_image(second_image, 200), 'segunda')
     # show_and_wait(cv.threshold(second_image, 200, 255, cv.THRESH_BINARY)[1], 'segunda opencv')
@@ -76,5 +83,7 @@ if __name__ == "__main__":
     # show_and_wait(get_black_white_image(third_image, 100),  'terceira')
     # show_and_wait(cv.threshold(third_image, 100, 255, cv.THRESH_BINARY)[1], 'terceira opencv')
 
-    a = np.array([[7,20,32,40,5,6],[1,2,3,4,5,6],[3,30,300,3000,30000,300000],[1,2,3,4,5,6],[1,20,3,4,5,60], [1,2,3,4,5,6]])
-    print(get_neighborhood_array(a, 5, 2))
+    #a = np.array([[7,20,32,40,5,6],[1,2,3,4,5,6],[3,30,300,3000,30000,300000],[1,2,3,4,5,6],[1,20,3,4,5,60], [1,2,3,4,5,6]])
+    #print(get_neighborhood_array(a, 5, 2))
+
+    print(erosion(first_image))
