@@ -240,10 +240,11 @@ if __name__ == "__main__":
 
     neighborhood_length = NEIGHBORHOOD
 
+    processed_image = image
     if EXEC_DILATION:
-        image = dilate(image, neighborhood_length, positive_color, positive_color, negative_color)
+        processed_image = dilate(processed_image, neighborhood_length, positive_color, positive_color, negative_color)
     if EXEC_EROSION:
-        image = erosion(image, neighborhood_length, positive_color, positive_color, negative_color)
+        processed_image = erosion(processed_image, neighborhood_length, positive_color, positive_color, negative_color)
 
-    groups_images, groups_rect = segment(image)
+    groups_images, groups_rect = segment(processed_image)
     plot_grouped_image(image, groups_rect)
