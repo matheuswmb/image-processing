@@ -211,7 +211,7 @@ def plot_grouped_image(image, groups_rect, color=RGB_RED, title='Imagem com Grup
     if show:
         plt.show()
 
-THREASHHOLD = 100
+THRESHOLD = 100
 USE_DEFAULT_COLOR = True
 EXEC_DILATION = False
 EXEC_EROSION = False
@@ -227,7 +227,7 @@ if __name__ == "__main__":
         path = arguments[1]
 
     image = get_image(path)
-    image = get_black_white_image(image, THREASHHOLD)
+    image = get_black_white_image(image, THRESHOLD)
     
     # plot_grouped_image(image, [])
     
