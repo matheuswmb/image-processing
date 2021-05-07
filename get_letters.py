@@ -12,7 +12,6 @@ BLACK = 0
 WHITE = 255
 # 107 is prime, so the rule in get_next_color "never" get this value.
 INVALID = 107
-WHITOUT_COLOR = -1
 HIT = 2
 FIT = 1
 HIT_RULE = 1
