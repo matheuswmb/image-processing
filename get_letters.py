@@ -1,4 +1,3 @@
-import math
 import sys
 import cv2 as cv
 import numpy as np
@@ -6,9 +5,8 @@ import numpy as np
 from collections import namedtuple
 from matplotlib import pyplot as plt
 
-import matplotlib.pyplot as plt
-
 Pixel = namedtuple('Pixel', ['x', 'y', 'value'])
+
 RGB_RED = (255, 0, 0)
 BLACK = 0
 WHITE = 255
