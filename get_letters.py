@@ -5,13 +5,19 @@ import numpy as np
 from collections import namedtuple
 from matplotlib import pyplot as plt
 
+import matplotlib.pyplot as plt
+
 Pixel = namedtuple('Pixel', ['x', 'y', 'value'])
 BLACK = 0
 WHITE = 255
-
 # 107 is prime, so the rule in get_next_color "never" get this value.
 INVALID = 107
 WHITOUT_COLOR = -1
+
+HIT = 2
+FIT = 1
+HIT_RULE = 1
+
 
 def show_and_wait(img_to_show, name="Display window"):
     cv.imshow(name, img_to_show)
@@ -111,7 +117,6 @@ def segment(image):
                             Pixel(next_init_x, next_init_y, neighborhood_pixel_value)
                         )
 
-        # print(len(stack), pixel.x , pixel.y)
         if len(stack) == 0 and len(next_inits) > 0:
             possible_init = next_inits.pop()
             while len(next_inits) != 0 and padded_image[possible_init.y+1, possible_init.x+1] == INVALID:
@@ -145,75 +150,7 @@ def get_neighborhood_array(array, x, y, neighbourhood=1, flatted=False, padded=F
     else:
         return neighborhood_array
 
-def get_cross_neighbourhood(image, x, y):
-    
-    pos_x = x
-    pos_y = y
-    len_row_image, len_column_image = image.shape
-    north_neigh, west_neigh, center_neigh, east_neigh, south_neigh = 0, 0, 0, 0, 0
-
-    if pos_x > 0:
-        if pos_y > 0:
-            if pos_x < len_row_image - 1:
-                if pos_y < len_column_image - 1:
-                    north_neigh = image[pos_x - 1][pos_y]
-                    west_neigh = image[pos_x][pos_y - 1]
-                    center_neigh = image[pos_x][pos_y]
-                    east_neigh = image[pos_x][pos_y + 1]
-                    south_neigh = image[pos_x + 1][pos_y] 
-
-    else:      
-        if pos_x == 0:
-            if pos_y == 0:
-                center_neigh = image[pos_x][pos_y]
-                east_neigh = image[pos_x][pos_y + 1]
-                south_neigh = image[pos_x + 1][pos_y]
-
-                
-        if pos_x == 0:
-            if pos_y > 0:
-                if pos_y < len_column_image - 1:
-                    west_neigh = image[pos_x][pos_y - 1]
-                    center_neigh = image[pos_x][pos_y]
-                    east_neigh = image[pos_x][pos_y + 1]
-                    south_neigh = image[pos_x + 1][pos_y]
-
-
-        if pos_x > 0:
-            if pos_y == 0:
-                if row_index < len_image_row - 1:
-                    north_neigh = image[pos_x - 1][pos_y]
-                    center_neigh = image[pos_x][pos_y]
-                    east_neigh = image[pos_x][pos_y + 1]
-                    south_neigh = image[pos_x + 1][pos_y]
-
-
-        if pos_x == 0:
-            if pos_y == len_image_row:
-                center_neigh = image[pos_x][pos_y]
-                east_neigh = image[pos_x][pos_y + 1]
-                south_neigh = image[pos_x + 1][pos_y]
-
-
-        if pos_x > 0:
-            if pos_y < len_image_column - 1:
-
-                north_neigh = image[pos_x - 1][pos_y]
-                west_neigh = image[pos_x][pos_y - 1]
-                center_neigh = image[pos_x][pos_y]
-                south_neigh = image[pos_x + 1][pos_y]
-                
-                    
-        if pos_x == len_image_row:
-            if pos_y == len_image_column:
-                north_neigh = image[pos_x - 1][pos_y]
-                west_neigh = image[pos_x][pos_y - 1]
-                center_neigh = image[pos_x][pos_y]
-
-    return (north_neigh, west_neigh, center_neigh, east_neigh, south_neigh)
-
 def find_start_point(image):
-
     len_row_image, len_column_image = image.shape
 
     for row_index in range(0, len_row_image):
@@ -221,169 +158,76 @@ def find_start_point(image):
             if image[row_index][column_index] == BLACK:
                 return row_index, column_index
 
-def check_neigh(image, x, y):
-
-    north, west, center, east, south = get_cross_neighbourhood(image, x, y)
+def check_neigh(image, x, y, check_by=WHITE):
+    neighborhood = get_neighborhood_array(image, x, y, flatted=True)
     count = 0
 
-    if north == BLACK:
-        count += 1
-    if west == BLACK:
-        count += 1
-    if center == BLACK:
-        count += 1
-    if east == BLACK:
-        count += 1
-    if south == BLACK:
-        count += 1
+    for pixel in neighborhood:
+        if pixel == check_by:
+            count += 1
 
-    if count == 5:
+    if count == len(neighborhood):
         return 1
-
-    if count >= 3:
+    if count >= HIT_RULE:
         return 2
-
     else:
         return 0
 
-def erosion(image):
+def erosion(image, erode_by=BLACK, positive_color=BLACK, negative_color=WHITE):
+    return __erode_or_dilate__(image, 'erode', dilate_by, positive_color, negative_color)
 
-    eroded_image = image.copy()
-    len_image_row, len_image_column = eroded_image.shape
-    x, y = find_start_point(eroded_image)
+def dilate(image, dilate_by=BLACK, positive_color=BLACK, negative_color=WHITE):
+    return __erode_or_dilate__(image, 'dilate', dilate_by, positive_color, negative_color)
 
-    for row_index in range(x, len_image_row):
-        for column_index in range(y, len_image_row):
-            count = check_neigh(eroded_image, len_image_row, len_image_column)
-
-            if count < 5:
-                if row_index > 0:
-                    if column_index > 0:
-                        if row_index < len_image_row - 1:
-                            if column_index < len_image_column - 1:
-                                eroded_image[row_index - 1][column_index] = WHITE
-                                eroded_image[row_index][column_index - 1] = WHITE
-                                eroded_image[row_index][column_index] = WHITE
-                                eroded_image[row_index][column_index + 1] = WHITE
-                                eroded_image[row_index + 1][column_index] = WHITE
-                else:
-                    if row_index == 0:
-                        if column_index == 0:
-                            eroded_image[row_index][column_index] = WHITE
-                            eroded_image[row_index][column_index + 1] = WHITE
-                            eroded_image[row_index + 1][column_index] = WHITE
-
-                    if row_index == 0:
-                        if column_index > 0:
-                            if column_index < len_image_column - 1:
-                                eroded_image[row_index][column_index - 1] = WHITE
-                                eroded_image[row_index][column_index] = WHITE
-                                eroded_image[row_index][column_index + 1] = WHITE
-                                eroded_image[row_index + 1][column_index] = WHITE
-                    
-                    if row_index > 0:
-                        if column_index == 0:
-                            if row_index < len_image_row - 1:
-                                eroded_image[row_index - 1][column_index] = WHITE
-                                eroded_image[row_index][column_index] = WHITE
-                                eroded_image[row_index][column_index + 1] = WHITE
-                                eroded_image[row_index + 1][column_index] = WHITE
-
-                    if row_index == 0:
-                        if column_index == len_image_row:
-                            eroded_image[row_index][column_index + 1] = WHITE
-                            eroded_image[row_index][column_index] = WHITE
-                            eroded_image[row_index + 1][column_index] = WHITE
-
-                    if row_index > 0:
-                        if column_index < len_image_column - 1:
-                            eroded_image[row_index - 1][column_index] = WHITE
-                            eroded_image[row_index][column_index - 1] = WHITE
-                            eroded_image[row_index][column_index] = WHITE
-                            eroded_image[row_index + 1][column_index] = WHITE
-
-                    if row_index == len_image_row:
-                        if column_index == len_image_column:
-                            eroded_image[row_index - 1][column_index] = WHITE
-                            eroded_image[row_index][column_index - 1] = WHITE
-                            eroded_image[row_index][column_index] = WHITE
-    return eroded_image
-
-def dilate(image):
+def __erode_or_dilate__(image, mode, check_by, positive_color, negative_color):
     dilated_image = image.copy() 
 
     len_image_row, len_image_column = dilated_image.shape
-    x, y = find_start_point(dilated_image)
+    for row_index in range(len_image_row):
+        for column_index in range(len_image_column):
+            to_check = check_neigh(image, column_index, row_index, check_by)
+            
+            if mode == 'dilate':
+                hit_or_fit = HIT
+            elif mode == 'erode':
+                hit_or_fit = FIT
 
-    for row_index in range(x, len_image_row):
-        for column_index in range(y, len_image_row):
-            count = check_neigh(dilated_image, len_image_row, len_image_column)
-
-            if count >= 3:
-                if row_index > 0:
-                    if column_index > 0:
-                        if row_index < len_image_row - 1:
-                            if column_index < len_image_column - 1:
-                                dilated_image[row_index - 1][column_index] = BLACK
-                                dilated_image[row_index][column_index - 1] = BLACK
-                                dilated_image[row_index][column_index] = BLACK
-                                dilated_image[row_index][column_index + 1] = BLACK
-                                dilated_image[row_index + 1][column_index] = BLACK
-                else:
-                    if row_index == 0:
-                        if column_index == 0:
-                            dilated_image[row_index][column_index] = BLACK
-                            dilated_image[row_index][column_index + 1] = BLACK
-                            dilated_image[row_index + 1][column_index] = BLACK
-
-                    if row_index == 0:
-                        if column_index > 0:
-                            if column_index < len_image_column - 1:
-                                dilated_image[row_index][column_index - 1] = BLACK
-                                dilated_image[row_index][column_index] = BLACK
-                                dilated_image[row_index][column_index + 1] = BLACK
-                                dilated_image[row_index + 1][column_index] = BLACK
-                    
-                    if row_index > 0:
-                        if column_index == 0:
-                            if row_index < len_image_row - 1:
-                                dilated_image[row_index - 1][column_index] = BLACK
-                                dilated_image[row_index][column_index] = BLACK
-                                dilated_image[row_index][column_index + 1] = BLACK
-                                dilated_image[row_index + 1][column_index] = BLACK
-
-                    if row_index == 0:
-                        if column_index == len_image_row:
-                            dilated_image[row_index][column_index + 1] = BLACK
-                            dilated_image[row_index][column_index] = BLACK
-                            dilated_image[row_index + 1][column_index] = BLACK
-
-                    if row_index > 0:
-                        if column_index < len_image_column - 1:
-                            dilated_image[row_index - 1][column_index] = BLACK
-                            dilated_image[row_index][column_index - 1] = BLACK
-                            dilated_image[row_index][column_index] = BLACK
-                            dilated_image[row_index + 1][column_index] = BLACK
-
-                    if row_index == len_image_row:
-                        if column_index == len_image_column:
-                            dilated_image[row_index - 1][column_index] = BLACK
-                            dilated_image[row_index][column_index - 1] = BLACK
-                            dilated_image[row_index][column_index] = BLACK
+            if to_check == hit_or_fit:
+                dilated_image[row_index, column_index] = positive_color
+            else:
+                dilated_image[row_index, column_index] = negative_color
 
     return dilated_image
 
-
 if __name__ == "__main__":
     first_image, second_image, third_image = get_images()
-    show_and_wait(first_image, "imagem total")
-    first_image = get_black_white_image(first_image, 210)
-    show_and_wait(first_image, "imagem preto e branco")
+    teste = cv.imread('./teste1.jpg', cv.IMREAD_GRAYSCALE)
 
-    cv.imwrite('./black_white.jpg', first_image)
+    first_image = get_black_white_image(first_image, 210)
     second_image = get_black_white_image(second_image, 200)
     third_image = get_black_white_image(third_image, 100)
-    imagens = segment(third_image)
-    print(len(imagens))
+    teste = get_black_white_image(teste, 100)
+
+    plot, img = plt.subplots()
+    plot.suptitle('Resultado')
+    img.imshow(cv.cvtColor(teste, cv.COLOR_BGR2RGB))
+    plt.show()
+
+    kernel = np.ones((3, 3), 'uint8', )
+    # first_image = dilate(first_image)
+    teste_dilatado = dilate(teste)
+    plot, img = plt.subplots()
+    plot.suptitle('Resultado')
+    img.imshow(cv.cvtColor(teste_dilatado, cv.COLOR_BGR2RGB))
+    plt.show()
+    # first_image = erosion(first_image)
+    # first_image = cv.erode(first_image, kernel, iterations=1)
+    # show_and_wait(first_image, f"imagem dilatada e erodida")
+    imagens = segment(teste_dilatado)
+
+    plot, img = plt.subplots()
+    plot.suptitle('Resultado')
+    img.imshow(imagens)
+    plt.show()
     # for i in range(len(imagens)):
     #     show_and_wait(imagens[i], f"imagem {i}")
