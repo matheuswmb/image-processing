@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 import matplotlib.pyplot as plt
 
 Pixel = namedtuple('Pixel', ['x', 'y', 'value'])
+RGB_RED = (255, 0, 0)
 BLACK = 0
 WHITE = 255
 # 107 is prime, so the rule in get_next_color "never" get this value.
@@ -76,6 +77,7 @@ def segment(image):
 
     group_color = None
     groups = []
+    groups_rect = []
     group_value = None
 
     initial_pixel = Pixel(0, 0, image[0, 0])
@@ -94,7 +96,12 @@ def segment(image):
             else:
                 groups.append(create_group(image.shape, WHITE))
 
+            groups_rect.append((pixel.x, pixel.y, pixel.x, pixel.y))
+
         groups[-1][pixel.y, pixel.x] = group_color
+
+        react = groups_rect[-1]
+        groups_rect[-1] = update_react(react, pixel)
         padded_image[pixel.y + 1, pixel.x + 1] = INVALID
 
         pixel_neighborhood = get_neighborhood_array(padded_image, pixel.x, pixel.y, padded=True)
@@ -126,7 +133,22 @@ def segment(image):
             group_value = None
             group_color = None
 
-    return groups
+    return groups, groups_rect
+
+def update_react(react, pixel):
+    x_init, y_init, x_final, y_final = react
+
+    if pixel.x < x_init:
+        x_init = pixel.x
+    if pixel.x > x_final:
+        x_final = pixel.x
+
+    if pixel.y < y_init:
+        y_init = pixel.y
+    if pixel.y > y_final:
+        y_final = pixel.y
+    
+    return (x_init, y_init, x_final, y_final)
 
 def get_neighborhood_array(array, x, y, neighbourhood=1, flatted=False, padded=False):
     if padded:
@@ -158,8 +180,8 @@ def find_start_point(image):
             if image[row_index][column_index] == BLACK:
                 return row_index, column_index
 
-def check_neigh(image, x, y, check_by=WHITE):
-    neighborhood = get_neighborhood_array(image, x, y, flatted=True)
+def check_neigh(image, neighborhood_length, x, y, check_by=WHITE):
+    neighborhood = get_neighborhood_array(image, x, y, neighborhood_length, flatted=True)
     count = 0
 
     for pixel in neighborhood:
@@ -173,19 +195,19 @@ def check_neigh(image, x, y, check_by=WHITE):
     else:
         return 0
 
-def erosion(image, erode_by=BLACK, positive_color=BLACK, negative_color=WHITE):
-    return __erode_or_dilate__(image, 'erode', dilate_by, positive_color, negative_color)
+def erosion(image, neighborhood_length=1, erode_by=BLACK, positive_color=BLACK, negative_color=WHITE):
+    return __erode_or_dilate__(image, neighborhood_length, 'erode', dilate_by, positive_color, negative_color)
 
-def dilate(image, dilate_by=BLACK, positive_color=BLACK, negative_color=WHITE):
-    return __erode_or_dilate__(image, 'dilate', dilate_by, positive_color, negative_color)
+def dilate(image, neighborhood_length=1, dilate_by=BLACK, positive_color=BLACK, negative_color=WHITE):
+    return __erode_or_dilate__(image, neighborhood_length, 'dilate', dilate_by, positive_color, negative_color)
 
-def __erode_or_dilate__(image, mode, check_by, positive_color, negative_color):
+def __erode_or_dilate__(image, neighborhood_length, mode, check_by, positive_color, negative_color):
     dilated_image = image.copy() 
 
     len_image_row, len_image_column = dilated_image.shape
     for row_index in range(len_image_row):
         for column_index in range(len_image_column):
-            to_check = check_neigh(image, column_index, row_index, check_by)
+            to_check = check_neigh(image, neighborhood_length, column_index, row_index, check_by)
             
             if mode == 'dilate':
                 hit_or_fit = HIT
@@ -199,6 +221,20 @@ def __erode_or_dilate__(image, mode, check_by, positive_color, negative_color):
 
     return dilated_image
 
+def plot_grouped_image(image, groups_rect, color=RGB_RED, title='Imagem com Grupos Demarcados', show=True):
+    groups_length = len(groups_rect)
+
+    image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+    for group in groups_rect:
+        image = cv.rectangle(image, (group[0] , group[1]), (group[2] , group[3]), color, 1)
+
+    plot, img = plt.subplots()
+    plot.suptitle(title)
+    img.imshow(image)
+    if show:
+        plt.show()
+
+
 if __name__ == "__main__":
     first_image, second_image, third_image = get_images()
     teste = cv.imread('./teste1.jpg', cv.IMREAD_GRAYSCALE)
@@ -209,25 +245,16 @@ if __name__ == "__main__":
     teste = get_black_white_image(teste, 100)
 
     plot, img = plt.subplots()
-    plot.suptitle('Resultado')
-    img.imshow(cv.cvtColor(teste, cv.COLOR_BGR2RGB))
+    plot.suptitle('teste dilatado com 3x3')
+    test_react = cv.cvtColor(first_image, cv.COLOR_BGR2RGB)
+    test_react = cv.rectangle(test_react, (2 , 10), (50 , 100), RGB_RED, 1)
+    img.imshow(test_react)
     plt.show()
 
-    kernel = np.ones((3, 3), 'uint8', )
-    # first_image = dilate(first_image)
     teste_dilatado = dilate(teste)
-    plot, img = plt.subplots()
-    plot.suptitle('Resultado')
-    img.imshow(cv.cvtColor(teste_dilatado, cv.COLOR_BGR2RGB))
-    plt.show()
-    # first_image = erosion(first_image)
-    # first_image = cv.erode(first_image, kernel, iterations=1)
-    # show_and_wait(first_image, f"imagem dilatada e erodida")
-    imagens = segment(teste_dilatado)
+    teste_dilatado_palavras = dilate(teste, 2)
+    imagens, groups_rect_dilatado = segment(teste_dilatado)
+    imagens, groups_rect_dilatado_palavras = segment(teste_dilatado_palavras)
 
-    plot, img = plt.subplots()
-    plot.suptitle('Resultado')
-    img.imshow(imagens)
-    plt.show()
-    # for i in range(len(imagens)):
-    #     show_and_wait(imagens[i], f"imagem {i}")
+    plot_grouped_image(teste_dilatado, groups_rect_dilatado, show=False)
+    plot_grouped_image(teste_dilatado_palavras, groups_rect_dilatado_palavras)
