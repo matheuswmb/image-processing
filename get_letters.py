@@ -13,10 +13,15 @@ WHITE = 255
 # 107 is prime, so the rule in get_next_color "never" get this value.
 INVALID = 107
 WHITOUT_COLOR = -1
-
 HIT = 2
 FIT = 1
 HIT_RULE = 1
+
+# variabels to modify
+THRESHOLD = 100
+USE_DEFAULT_COLOR = True
+EXEC_DILATION = False
+EXEC_EROSION = False
 
 def get_image(path):
     return cv.imread(path, cv.IMREAD_GRAYSCALE)
@@ -210,11 +215,6 @@ def plot_grouped_image(image, groups_rect, color=RGB_RED, title='Imagem com Grup
     img.imshow(image)
     if show:
         plt.show()
-
-THRESHOLD = 100
-USE_DEFAULT_COLOR = True
-EXEC_DILATION = False
-EXEC_EROSION = False
 
 if __name__ == "__main__":
     arguments = sys.argv
