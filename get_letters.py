@@ -8,7 +8,9 @@ from matplotlib import pyplot as plt
 Pixel = namedtuple('Pixel', ['x', 'y', 'value'])
 BLACK = 0
 WHITE = 255
-GRAY = 100
+
+# 107 is prime, so the rule in get_next_color "never" get this value.
+INVALID = 107
 WHITOUT_COLOR = -1
 
 def show_and_wait(img_to_show, name="Display window"):
@@ -46,52 +48,78 @@ def get_images():
 
     return first_image, second_image, third_image
 
-def default_group_index_and_color(pixel_value):
-    if pixel_value == 0:
-        return 0, BLACK
-    elif pixel_value == 255:
-        return 1, WHITE
+def get_next_color(init_value=None, step=50):
+    init_value = init_value or WHITE
+
+    if step == None:
+        while True:
+            yield init_value
+            if init_value == WHITE:
+                init_value = BLACK
     else:
-        return -1, WHITOUT_COLOR
+        while init_value > 0 + step:
+            yield init_value
+            init_value -= step
 
-def segment(image, groups_number=None, groups_color=None, get_group_index=default_group_index_and_color):
-    padded_image = np.pad(first_image, 1, mode='constant', constant_values=(GRAY))
-    groups_number = groups_number or 2
-    groups_color = groups_color or [255, 0]
+def create_group(shape, fill_value):
+    return np.full(shape, fill_value, 'uint8')
+
+def segment(image):
+    padded_image = np.pad(image, 1, mode='constant', constant_values=(INVALID))
+    get_color = get_next_color(step=None)
+
+    group_color = None
     groups = []
-
-    for group_index in range(groups_number):
-        groups.append(np.full(image.shape, groups_color[group_index], 'uint8'))
+    group_value = None
 
     initial_pixel = Pixel(0, 0, image[0, 0])
     stack = [initial_pixel]
-    next_stacks = []
+    added_points = {}
+    next_inits = []
 
     while len(stack) != 0:
         pixel = stack.pop()
 
-        pixel_group, pixel_color = get_group_index(pixel.value)
-        groups[pixel_group][pixel.y, pixel.x] = pixel_color
+        if group_value is None:
+            group_value = pixel.value
+            group_color = next(get_color)
+            if group_color == WHITE:
+                groups.append(create_group(image.shape, BLACK))
+            else:
+                groups.append(create_group(image.shape, WHITE))
 
-        padded_image[pixel.y + 1, pixel.x + 1] = GRAY
+        groups[-1][pixel.y, pixel.x] = group_color
+        padded_image[pixel.y + 1, pixel.x + 1] = INVALID
+
         pixel_neighborhood = get_neighborhood_array(padded_image, pixel.x, pixel.y, padded=True)
         row_len, column_len = pixel_neighborhood.shape
         for row_index in range(row_len):
             for column_index in range(column_len):
                 neighborhood_pixel_value = pixel_neighborhood[row_index][column_index]
-                neighborhood_pixel_group, neighborhood_pixel_color = get_group_index(neighborhood_pixel_value)
-                if neighborhood_pixel_group == pixel_group:
+                if neighborhood_pixel_value == group_value:
                     stack.append(
                         Pixel(pixel.x-1+column_index, pixel.y-1+row_index, neighborhood_pixel_value)
                     )
-                elif neighborhood_pixel_color != WHITOUT_COLOR:
-                    next_stacks.append(
-                        [Pixel(pixel.x-1+column_index, pixel.y-1+row_index, neighborhood_pixel_value)]
-                    )
+                elif neighborhood_pixel_value != INVALID:
+                    next_init_x = pixel.x-1+column_index
+                    next_init_y = pixel.y-1+row_index
+                    new_key = f'{next_init_x}, {next_init_y}'
 
-        # print(len(stack), pixel.x, pixel.y)
-        if len(stack) == 0 and len(next_stacks) > 0:
-            stack = next_stacks.pop()
+                    if new_key not in added_points:
+                        added_points.update({new_key: True})
+                        next_inits.append(
+                            Pixel(next_init_x, next_init_y, neighborhood_pixel_value)
+                        )
+
+        # print(len(stack), pixel.x , pixel.y)
+        if len(stack) == 0 and len(next_inits) > 0:
+            possible_init = next_inits.pop()
+            while len(next_inits) != 0 and padded_image[possible_init.y+1, possible_init.x+1] == INVALID:
+                possible_init = next_inits.pop()
+
+            stack = [possible_init]
+            group_value = None
+            group_color = None
 
     return groups
 
@@ -348,57 +376,14 @@ def dilate(image):
 
 if __name__ == "__main__":
     first_image, second_image, third_image = get_images()
+    show_and_wait(first_image, "imagem total")
+    first_image = get_black_white_image(first_image, 210)
+    show_and_wait(first_image, "imagem preto e branco")
 
-    # show_and_wait(get_black_white_image(first_image, 220), 'primeira')
-    # show_and_wait(cv.threshold(first_image, 220, 255, cv.THRESH_BINARY)[1], 'primeira opencv')
-
-    kernel = np.ones((2, 2), dtype=np.uint8)
-
-    #show_and_wait(get_black_white_image(second_image, 200), 'segunda')
-    #eroded = erosion(second_image, kernel)
-    #show_and_wait(eroded)
-    # show_and_wait(cv.threshold(second_image, 200, 255, cv.THRESH_BINARY)[1], 'segunda opencv')
-
-    # show_and_wait(get_black_white_image(third_image, 100),  'terceira')
-    # show_and_wait(cv.threshold(third_image, 100, 255, cv.THRESH_BINARY)[1], 'terceira opencv')
-
-    #a = np.array([[7,20,32,40,5,6],[1,2,3,4,5,6],[3,30,300,3000,30000,300000],[1,2,3,4,5,6],[1,20,3,4,5,60], [1,2,3,4,5,6]])
-    #print(get_neighborhood_array(a, 5, 2))
-     
-    teste1 = cv.imread('./teste1.jpg', cv.IMREAD_GRAYSCALE)
-    teste2 = cv.imread('./teste2.jpg', cv.IMREAD_GRAYSCALE)
-    teste1 = get_black_white_image(teste1, 140)
-    teste2 = get_black_white_image(teste2, 210)    
-
-    # -- teste1 becomes the new image and the return of the function is a safe copy of the image --
-    #show_and_wait(teste1, 'teste1')
-    #eroded = erosion(teste1)
-    #erosaocv = cv.erode(teste1,kernel,iterations = 1)
-    #show_and_wait(eroded, 'teste1 erodido')
-    #show_and_wait(erosaocv, 'teste1 opencv')
-    show_and_wait(teste1)
-    dilatacao = dilate(teste1)
-    show_and_wait(dilatacao, 'teste1 dilatacao')
-    dilation = cv.dilate(teste1,kernel,iterations = 1)
-    show_and_wait(dilation, 'teste1 dilatacao opencv')
-
-    #erosao2 = erosion(teste2)
-    #erosaocv2 = cv.erode(teste2,kernel,iterations = 1)
-    #show_and_wait(teste2, 'teste2')
-    #show_and_wait(erosao2, 'teste2 erodido')
-    #show_and_wait(erosaocv2, 'teste2 opencv')
-    #dilatacao2 = dilate(teste2)
-    #dilation2 = cv.dilate(first_image,kernel,iterations = 1)
-    #show_and_wait(dilatacao, 'teste2 dilatacao')
-    #show_and_wait(dilation2, 'teste2 dilatacao opencv')
-
-    #first_image = get_black_white_image(first_image, 220)
-    #show_and_wait(first_image, 'preta e branca')
-    #erosion(third_image)
-    #dilate(first_image)
-    #show_and_wait(first_image, 'dilatacao')
-
-    
-    #erosion = cv.erode(first_image,kernel,iterations = 1)
-    #show_and_wait(erosion, 'opencv')
-    #show_and_wait(dilation, 'opencv')
+    cv.imwrite('./black_white.jpg', first_image)
+    second_image = get_black_white_image(second_image, 200)
+    third_image = get_black_white_image(third_image, 100)
+    imagens = segment(third_image)
+    print(len(imagens))
+    # for i in range(len(imagens)):
+    #     show_and_wait(imagens[i], f"imagem {i}")
