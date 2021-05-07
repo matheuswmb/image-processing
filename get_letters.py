@@ -22,6 +22,7 @@ THRESHOLD = 100
 USE_DEFAULT_COLOR = True
 EXEC_DILATION = False
 EXEC_EROSION = False
+NEIGHBORHOOD = 1
 
 def get_image(path):
     return cv.imread(path, cv.IMREAD_GRAYSCALE)
@@ -238,7 +239,7 @@ if __name__ == "__main__":
         positive_color = WHITE
         negative_color = BLACK
 
-    neighborhood_length = 1
+    neighborhood_length = NEIGHBORHOOD
 
     if EXEC_DILATION:
         image = dilate(image, neighborhood_length, positive_color, positive_color, negative_color)
