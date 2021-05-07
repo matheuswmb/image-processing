@@ -1,4 +1,5 @@
 import math
+import sys
 import cv2 as cv
 import numpy as np
 
@@ -19,23 +20,8 @@ HIT = 2
 FIT = 1
 HIT_RULE = 1
 
-
-def show_and_wait(img_to_show, name="Display window"):
-    cv.imshow(name, img_to_show)
-    a = cv.waitKey(0)
-
-def plot_histogram(image, channel, pixel_range=None, color='grey'):
-    pixel_range = pixel_range or [0,256]
-
-    hist = cv.calcHist([image], channel, None, [256], pixel_range)
-
-    plt.plot(hist, color=color)
-    plt.xlim([0,256])
-    plt.show()
-
-def pre_processing_image(image, bottom_limit=200):
-    gray_image = get_gray_image(image)
-    return get_black_white_image(gray_image, bottom_limit)
+def get_image(path):
+    return cv.imread(path, cv.IMREAD_GRAYSCALE)
 
 def get_black_white_image(image, bottom_limit):
     blackAndWhiteImage = image.copy()
@@ -47,29 +33,6 @@ def get_black_white_image(image, bottom_limit):
                 blackAndWhiteImage[row_index][column_index] = BLACK
 
     return blackAndWhiteImage
-
-def get_images():
-    first_image = cv.imread('./first.jpg', cv.IMREAD_GRAYSCALE)
-    second_image = cv.imread('./second.jpg', cv.IMREAD_GRAYSCALE)
-    third_image = cv.imread('./third.jpg', cv.IMREAD_GRAYSCALE)
-
-    return first_image, second_image, third_image
-
-def get_next_color(init_value=None, step=50):
-    init_value = init_value or WHITE
-
-    if step == None:
-        while True:
-            yield init_value
-            if init_value == WHITE:
-                init_value = BLACK
-    else:
-        while init_value > 0 + step:
-            yield init_value
-            init_value -= step
-
-def create_group(shape, fill_value):
-    return np.full(shape, fill_value, 'uint8')
 
 def segment(image):
     padded_image = np.pad(image, 1, mode='constant', constant_values=(INVALID))
@@ -135,6 +98,22 @@ def segment(image):
 
     return groups, groups_rect
 
+def get_next_color(init_value=None, step=50):
+    init_value = init_value or WHITE
+
+    if step == None:
+        while True:
+            yield init_value
+            if init_value == WHITE:
+                init_value = BLACK
+    else:
+        while init_value > 0 + step:
+            yield init_value
+            init_value -= step
+
+def create_group(shape, fill_value):
+    return np.full(shape, fill_value, 'uint8')
+
 def update_react(react, pixel):
     x_init, y_init, x_final, y_final = react
 
@@ -196,7 +175,7 @@ def check_neigh(image, neighborhood_length, x, y, check_by=WHITE):
         return 0
 
 def erosion(image, neighborhood_length=1, erode_by=BLACK, positive_color=BLACK, negative_color=WHITE):
-    return __erode_or_dilate__(image, neighborhood_length, 'erode', dilate_by, positive_color, negative_color)
+    return __erode_or_dilate__(image, neighborhood_length, 'erode', erode_by, positive_color, negative_color)
 
 def dilate(image, neighborhood_length=1, dilate_by=BLACK, positive_color=BLACK, negative_color=WHITE):
     return __erode_or_dilate__(image, neighborhood_length, 'dilate', dilate_by, positive_color, negative_color)
@@ -234,27 +213,39 @@ def plot_grouped_image(image, groups_rect, color=RGB_RED, title='Imagem com Grup
     if show:
         plt.show()
 
+THREASHHOLD = 100
+USE_DEFAULT_COLOR = True
+EXEC_DILATION = False
+EXEC_EROSION = False
 
 if __name__ == "__main__":
-    first_image, second_image, third_image = get_images()
-    teste = cv.imread('./teste1.jpg', cv.IMREAD_GRAYSCALE)
+    arguments = sys.argv
+    arguments_length = len(arguments)
+    if arguments_length < 2:
+        print("É necessario passar o caminho para a imagem na execução")
+        sys.exit(1)
+    
+    if arguments_length > 1:
+        path = arguments[1]
 
-    first_image = get_black_white_image(first_image, 210)
-    second_image = get_black_white_image(second_image, 200)
-    third_image = get_black_white_image(third_image, 100)
-    teste = get_black_white_image(teste, 100)
+    image = get_image(path)
+    image = get_black_white_image(image, THREASHHOLD)
+    
+    # plot_grouped_image(image, [])
+    
+    if USE_DEFAULT_COLOR:
+        positive_color = BLACK
+        negative_color = WHITE
+    else:
+        positive_color = WHITE
+        negative_color = BLACK
 
-    plot, img = plt.subplots()
-    plot.suptitle('teste dilatado com 3x3')
-    test_react = cv.cvtColor(first_image, cv.COLOR_BGR2RGB)
-    test_react = cv.rectangle(test_react, (2 , 10), (50 , 100), RGB_RED, 1)
-    img.imshow(test_react)
-    plt.show()
+    neighborhood_length = 1
 
-    teste_dilatado = dilate(teste)
-    teste_dilatado_palavras = dilate(teste, 2)
-    imagens, groups_rect_dilatado = segment(teste_dilatado)
-    imagens, groups_rect_dilatado_palavras = segment(teste_dilatado_palavras)
+    if EXEC_DILATION:
+        image = dilate(image, neighborhood_length, positive_color, positive_color, negative_color)
+    if EXEC_EROSION:
+        image = erosion(image, neighborhood_length, positive_color, positive_color, negative_color)
 
-    plot_grouped_image(teste_dilatado, groups_rect_dilatado, show=False)
-    plot_grouped_image(teste_dilatado_palavras, groups_rect_dilatado_palavras)
+    groups_images, groups_rect = segment(image)
+    plot_grouped_image(image, groups_rect)
